@@ -154,7 +154,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                     for (var g in main.menu[t].items) {
                         if (main.menu[t].items.hasOwnProperty(g)) {
                             var c = (main.menu[t].header+" "+main.menu[t].items[g].header.name).replace(/ /g,"_");
-                            if ((typeof localStorage !== 'undefined') && (localStorage.getItem("g"+c) == "true")) {
+                            if (!!localStorage && (localStorage.getItem("g"+c) == "true")) {
                                 main.menu[t].items[g].header.config.hidden = true;
                                 flag = true;
                             }
