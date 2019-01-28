@@ -215,14 +215,16 @@ function add(opt) {
                             if (b.indexOf("[") !== -1) { b = b.split("[")[0]; }
                             if (!toEmit.hasOwnProperty("msg")) { toEmit.msg = {}; }
                             if (!toEmit.msg.hasOwnProperty(b) && msg.hasOwnProperty(b)) {
-                                toEmit.msg[b] = JSON.parse(JSON.stringify(msg[b]));
+                                if (Buffer.isBuffer(msg[b])) { toEmit.msg[b] = msg[b].toString("binary"); }
+                                else { toEmit.msg[b] = JSON.parse(JSON.stringify(msg[b])); }
                             }
                         }
                         else {
                             if (b.indexOf(".") !== -1) { b = b.split(".")[0]; }
                             if (b.indexOf("[") !== -1) { b = b.split("[")[0]; }
                             if (!toEmit.hasOwnProperty(b) && msg.hasOwnProperty(b)) {
-                                toEmit[b] = JSON.parse(JSON.stringify(msg[b]));
+                                if (Buffer.isBuffer(msg[b])) { toEmit[b] = msg[b].toString("binary"); }
+                                else { toEmit[b] = JSON.parse(JSON.stringify(msg[b])); }
                             }
                         }
                     }
@@ -236,7 +238,6 @@ function add(opt) {
             addField("units");
             if (msg.hasOwnProperty("enabled")) { toEmit.disabled = !msg.enabled; }
             toEmit.id = toStore.id = opt.node.id;
-
             // Emit and Store the data
             //if (settings.verbose) { console.log("UI-EMIT",JSON.stringify(toEmit)); }
             io.emit(updateValueEventName, toEmit);
@@ -366,6 +367,9 @@ function init(server, app, log, redSettings) {
         socket.on('disconnect', function() {
             ev.emit("endsocket", socket.client.id, socket.request.connection.remoteAddress);
         });
+        socket.on('ui-audio', function(audioStatus) {
+            ev.emit("audiostatus", audioStatus, socket.client.id, socket.request.connection.remoteAddress);
+        });
     });
 }
 
@@ -377,13 +381,21 @@ function updateUi(to) {
         to = io;
     }
     process.nextTick(function() {
+        var m = [];
         menu.forEach(function(o) {
-            o.theme = baseConfiguration.theme;
+            if (o.hasOwnProperty("items")) {
+                o.items.forEach(function(i) {
+                    if (i.hasOwnProperty("header")) {
+                        delete i.header._flow;
+                    }
+                })
+            }
+            m.push(o);
         });
         to.emit('ui-controls', {
             site: baseConfiguration.site,
             theme: baseConfiguration.theme,
-            menu: menu,
+            menu: m,
             globals: globals
         });
         updateUiPending = false;
@@ -437,6 +449,9 @@ function addControl(tab, groupHeader, control) {
                 header: tab.config.name,
                 order: parseFloat(tab.config.order),
                 icon: tab.config.icon,
+                //icon: tab.config.hidden ? "fa-ban" : tab.config.icon,
+                disabled: tab.config.disabled,
+                hidden: tab.config.hidden,
                 items: []
             };
             menu.push(foundTab);

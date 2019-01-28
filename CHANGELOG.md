@@ -1,10 +1,127 @@
 
-### 2.9.5-beta: Maintenance Release
+### 2.13.1: Maintenance Release
+
+**Fixes**
+
+ - Fix ui_template to return correct sessionid to each browser.
+ - Fix line chart xAxis hover to use same time format as main axis
+ - Fix chart colours to have more than 9 colours just in case - Issue #465
+ - Remove circular ref in menu that caused problems with 0.20 beta
+ - Let ui_text node send data onBlur when in wait for key mode
+ - Update Angular dependency to 1.7.6 - Issue #462
+
+### 2.13.0: Milestone Release
+
+**Enhancements**
+
+ - Add ability to hide and/or disable tabs manually - PR #456
+
+**Fixes**
+
+ - Fix up ui_text toString mishandling error - Issue #459
+ - Add some undo capability to ordering of widgets - Issue #461
+
+### 2.12.2: Maintenance Release
+
+**Fixes**
+
+ - Revert change to button and switch typed inputs - Issue #455
+ - Fix handling of {{msg.property}} handling for labels
+
+### 2.12.1: Maintenance Release
+
+**Fixes**
+
+ - Ensure spacer actually gets created with no users
+
+### 2.12.0: Milestone Release
+
+**Enhancements**
+
+ - Introduce concept of spacer nodes in groups to allow more widget layout options
+
+**Fixes**
+
+ - Set order value correctly for newly added ui nodes
+ - Let ui_text node handle buffers without mangling to utf8
+ - Fix ui_template info odd/even example to work again (after theme changes)
+ - Ensure colour picker retains old value on multiple reloads when in dynamic mode - Issue #452
+ - Fix missing page titles (mea culpa) - Issue #453
+
+### 2.11.0: Milestone Release
+
+**Enhancements**
+
+ - Let side menu be locked open via site config tab - Issue #446
+ - Let audio playback node show status in editor for debug
+
+**Fixes**
+
+ - Fix button background CSS so it can be over-ridden - Issue #444
+
+### 2.10.1: Maintenance Release
+
+**Enhancements**
+
+ - Let slider only send on mouse release (discrete mode)
+
+**Fixes**
+
+ - Stop background path css escape for gauge
+ - Fix radar chart so it picks up theme - Issue #443
+
+### 2.10.0: Milestone Release
+
+**Enhancements**
+
+ - Add PR to allow pluggable widgets. PR #427
+   - see https://github.com/node-red/node-red-dashboard/wiki/Creating-New-Dashboard-Widgets
+ - Let users use 100% Angular theme if desired.
+ - Add footer div with id nr-dashboard-footer to make targeting easier.
+ - Add Japanese translations for ui_control node. PR #439
+
+**Fixes**
+
+ - Add polyfill for IE11 Object.assign. Issue #402
+ - Tweak colour picker to default to solid colours
+ - Fix up ng-click colours in list. Issue #433
+
+### 2.9.8: Maintenance Release
+
+**Fixes**
+
+ - Tidy up dashboard widget list if widget moved then renamed. Issue #426
+ - Let numeric widget handle angular filters again for value. Issue #428
+
+### 2.9.7: Maintenance Release
+
+**Enhancements**
+
+ - Let link specify existing tab. Issue #420
+ - Let bar charts specify legend if required. Issue #423
+ - Add more links to lists of icons available.
+
+**Fixes**
+
+ - Ensure old forms Submit/Cancel buttons still display a value.
+ - Let internal form elements scale more appropriately with grid size. Issue #416
+ - Adjust slider timing to try to better smooth output
+
+### 2.9.6: Maintenance Release
+
+**Fixes**
+
+ - Update socket.io to remove audit vulnerability. Issue #411
+
+### 2.9.5: Maintenance Release
 
 **Fixes**
 
  - Remove colour from button when in template in no style mode. Issue #400
  - Fix format support for numeric widget. Issue #401
+ - Fix min-width of dropdown label field. Issue #405
+ - Let blank value field in gauge NOT display the value text (default to payload). Issue #406
+ - Let form buttons have changeable text. Issue #408
 
 ### 2.9.4: Maintenance Release
 

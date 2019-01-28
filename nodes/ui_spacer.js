@@ -1,7 +1,7 @@
 module.exports = function(RED) {
     var ui = require('../ui')(RED);
 
-    function FormNode(config) {
+    function SpacerNode(config) {
         RED.nodes.createNode(this, config);
         var node = this;
 
@@ -15,23 +15,13 @@ module.exports = function(RED) {
             tab: tab,
             group: group,
             control: {
-                type: 'form',
-                label: config.label,
+                type: 'spacer',
                 order: config.order,
-                value: config.payload || node.id,
                 width: config.width || group.config.width || 6,
-                height: config.height || config.options.length ,
-                options: config.options,
-                formValue: config.formValue,
-                submit: config.submit,
-                cancel: config.cancel,
-                sy: ui.getSizes().sy
-            },
-            beforeSend: function (msg) {
-                msg.topic = config.topic;
+                height: config.height || 1
             }
         });
         node.on("close", done);
     }
-    RED.nodes.registerType("ui_form", FormNode);
+    RED.nodes.registerType("ui_spacer", SpacerNode);
 };

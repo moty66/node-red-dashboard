@@ -142,7 +142,14 @@ function loadConfiguration(type,scope) {
     var interpolate = scope.$eval('me.item.interpolate');
     var xFormat = scope.$eval('me.item.xformat');
     var showDot = scope.$eval('me.item.dot');
-    var baseColours = scope.$eval('me.item.colors') || ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
+    var bColours = scope.$eval('me.item.colors') || ['#1F77B4', '#AEC7E8', '#FF7F0E', '#2CA02C', '#98DF8A', '#D62728', '#FF9896', '#9467BD', '#C5B0D5'];
+    var baseColours = bColours.concat([
+        '#7EB3C6','#BB9A61','#3F8FB9','#57A13F',
+        '#BC5879','#6DC2DF','#D7D185','#91CA96',
+        '#DEB64D','#31615A','#B46E3F','#9B2FAA',
+        '#61A240','#AA3167','#9D6D5E','#3498DB',
+        '#EC7063','#DAF7A6','#FFC300','#D98880',
+        '#48C9B0','#7FB3D5','#F9E79F','#922B21']);
     var config = scope.config || {};
     var themeState = scope.$eval('me.item.theme.themeState');
     var useOneColor = scope.$eval('me.item.useOneColor');
@@ -188,7 +195,7 @@ function loadConfiguration(type,scope) {
             scaleLabel: {
                 fontColor: "#fff",
                 display: true
-            },
+            }
         }];
         if (xFormat !== "auto") {
             config.options.scales.xAxes[0].time = {
@@ -202,7 +209,7 @@ function loadConfiguration(type,scope) {
                     'week': xFormat,
                     'month': xFormat,
                     'quarter': xFormat,
-                    'year': xFormat,
+                    'year': xFormat
                 }
             };
         }
@@ -217,6 +224,7 @@ function loadConfiguration(type,scope) {
                     // Display and format the most recent time value as the title.
                     // This ensures the title reflects the xAxis time.
                     var largest = tooltip[0].xLabel;
+                    largest = new Date(largest).getTime();
                     if (isNaN(largest) || (largest < 1000000)) { return largest; }
                     for (var i=1; i<tooltip.length; i++) {
                         if (tooltip[i].xLabel > largest) {
@@ -267,9 +275,28 @@ function loadConfiguration(type,scope) {
         config.options.scales.xAxes = [{}];
     }
     else if (type === "radar") {
-        config.options.scale = {ticks:{}};
+        config.options = {
+            scale: {
+                ticks: {
+                    beginAtZero: true,
+                    showLabelBackdrop: false
+                }
+            }
+        };
         if (!isNaN(yMin)) { config.options.scale.ticks.min = yMin; }
         if (!isNaN(yMax)) { config.options.scale.ticks.max = yMax; }
+        if (themeState) {
+            var tc = themeState['widget-textColor'].value;
+            var gc = tinycolor(tc).toRgb();
+            var gl = "rgba("+gc.r+","+gc.g+","+gc.b+",0.1)";
+            var gl2 = "rgba("+gc.r+","+gc.g+","+gc.b+",0.3)";
+            var gl3 = "rgba("+gc.r+","+gc.g+","+gc.b+",0.6)";
+            config.options.scale.ticks.fontColor= gl3; // labels such as 10, 20, etc
+            config.options.scale.ticks.fontSize = 8;
+            config.options.scale.pointLabels = { fontColor: tc, fontSize: 14 }; // labels around the edge like 'Running'
+            config.options.scale.gridLines = { color: gl };
+            config.options.scale.angleLines = { color: gl2 }; // lines radiating from the center
+        }
     }
 
     // Configure scales
@@ -323,7 +350,8 @@ function loadConfiguration(type,scope) {
     }
 
     // Configure legend
-    if (type !== 'bar' && type !== 'horizontalBar' && JSON.parse(legend)) {
+    //if (type !== 'bar' && type !== 'horizontalBar' && JSON.parse(legend)) {
+    if (JSON.parse(legend)) {
         config.options.legend = {
             display:true,
             position:'top',
@@ -338,6 +366,5 @@ function loadConfiguration(type,scope) {
             config.options.legend.labels.fontColor = themeState['widget-textColor'].value;
         }
     }
-
     return config;
 }
