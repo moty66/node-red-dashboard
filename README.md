@@ -1,21 +1,23 @@
 # node-red-dashboard
 
+[![platform](https://img.shields.io/badge/platform-Node--RED-red)](https://nodered.org)
 ![NPM version](https://badge.fury.io/js/node-red-dashboard.svg)
+![NPM](https://img.shields.io/npm/l/node-red-dashboard)
 
-This module provides a set of nodes in Node-RED to quickly create a live data
-dashboard.
+This module provides a set of nodes in Node-RED to quickly create a live data dashboard.
+
+These nodes require node.js version 8. The last version to support node v6 was 2.9.5.
 
 From version 2.10.0 you can create and install widget nodes like other Node-RED nodes.
-See the <a href="https://github.com/node-red/node-red-dashboard/wiki/Creating-New-Dashboard-Widgets">Wiki</a>
-for more information.
+See the [Wiki](https://github.com/node-red/node-red-dashboard/wiki/Creating-New-Dashboard-Widgets) for more information.
 
 For the latest updates see the [CHANGELOG.md](https://github.com/node-red/node-red-dashboard/blob/master/CHANGELOG.md)
 
-<img src="http://nodered.org/images/dashboarde.png"/>
+![Dashboard example](http://nodered.org/images/dashboarde.png)
 
 ## Pre-requisites
 
-The Node-RED-Dashboard requires <a href="https://nodered.org">Node-RED</a> to be installed.
+The Node-RED-Dashboard requires [Node-RED](https://nodered.org) to be installed.
 
 ## Install
 
@@ -33,6 +35,19 @@ If you want to try the latest version from github, you can install it by
 ## Settings
 
 The default url for the dashboard is based off your existing Node-RED httpRoot path with /ui added. This can be changed in your Node-RED settings.js file - `ui: { path: "ui" },`
+
+You can also add your own express middleware to handle requests by using the `ui: { middleware: your_function }` property in settings.js. For example
+
+```
+ui: { path: 'ui', middleware: function (req, res, next) {
+            // Do something more interesting here.
+            console.log('LOGGED')
+            next()
+        }
+    },
+```
+
+You can also set the dashboard to be read only by `ui: { readOnly: true }`. This does not stop the user interacting with the dashboard but does ignore all updates coming from the dashboard.
 
 ## Layout
 
@@ -78,6 +93,17 @@ The widget layout is managed by a `dashboard` tab in the sidebar of the Node-RED
 
 You can also choose to use the basic Angular Material themes instead if you like, either just within any ui_templates or for the whole Dashboard. This will only affect angular components so some of the charts and so on may need extra work.
 
+**Note**: For users creating their own templates the following CSS variable names are available
+to help pick up the theme colours.
+
+ - --nr-dashboard-pageBackgroundColor
+ - --nr-dashboard-pageTitlebarBackgroundColor
+ - --nr-dashboard-groupBackgroundColor
+ - --nr-dashboard-groupTextColor
+ - --nr-dashboard-groupBorderColor
+ - --nr-dashboard-widgetColor
+ - --nr-dashboard-widgetTextColor
+ - --nr-dashboard-widgetBgndColor
 
 #### Widgets
 
@@ -111,10 +137,19 @@ for futher details.
   - **Template** - the template node allows the user to specify and create their own widgets within the framework using HTML, Javascript. This is an Angular.js widget. You may also use this to override the built in CSS styles.
   - **Text** - A read only widget, the layout of the `label`, and `value` can be configured.
   - **Text input** - text input box, with optional label, can also support password, email and colour modes.
-  - **UI-Control** - allows some dynamic control of the dashboard. Sending a `msg.payload` of the tab number (from 0) or tab_name will switch to that tab. Groups can be hidden and made visible via a msg like `{group:{hide:["tab_name_group_name_with_underscores"],show:["tab_name_another_group"],focus:true}}`. Outputs a `msg.payload` for every browser *connect* and *loss* and every tab *change*  that can be used to trigger other actions. 
+  - **UI-Control** - allows some dynamic control of the dashboard. Sending a `msg.payload` of the tab number (from 0) or tab_name will switch to that tab. Tabs can be enabled/disabled/hide/show via msg like `{"tabs":{"hide":["tab_name_with_underscores"],"show":["another_tab_name"],"disable":["unused_tab_name"]}}`.
+  Groups can be hidden and made visible via a msg like `{"group":{"hide":["tab_name_group_name_with_underscores"],"show":["tab_name_another_group"],"focus":true}}`. Outputs a `msg.payload` for every browser *connect* and *loss*, and every tab *change*. This can be used to trigger other actions like resetting the visibility of tabs and groups.
 
 **Tip:** The *Text* widget will accept html - so you can use it together with the *fa-icons* we
 already use to create indicator type widgets.
+
+## Loading the Dashboard
+
+Due to the size of the dashboard libraries it can take a long time to load if you are running on wireless network. It is possible add a custom loading page if you wish. To do so add a file called `loading.html` to the `node_modules/node-red-dashboard/dist/` folder. A simple example could be
+
+```
+ <div><i class="fa fa-spin fa-5x fa-spinner"></i></div>
+ ```
 
 ## Securing the Dashboard
 

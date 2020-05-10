@@ -11,7 +11,7 @@ angular.module('ui').directive('uiChartJs', [ '$timeout', '$interpolate',
                     var type = scope.$eval('me.item.look');
                     var useOneColor = scope.$eval('me.item.useOneColor');
 
-                    scope.$watchGroup(['me.item.legend','me.item.interpolate','me.item.ymin','me.item.ymax','me.item.xformat','me.item.dot','me.item.cutout','me.item.nodata','me.item.animation','me.item.spanGaps'], function (newValue) {
+                    scope.$watchGroup(['me.item.legend','me.item.interpolate','me.item.ymin','me.item.ymax','me.item.xformat','me.item.dot','me.item.cutout','me.item.nodata','me.item.animation','me.item.spanGaps','me.item.options'], function (newValue) {
                         scope.config = loadConfiguration(type, scope);
                     });
 
@@ -129,7 +129,7 @@ angular.module('ui').directive('uiChartJs', [ '$timeout', '$interpolate',
                 }, 0);
                 $timeout(function() {
                     scope.$broadcast("$resize");
-                }, 100);
+                }, 50);
             }
         }
     }
@@ -153,6 +153,7 @@ function loadConfiguration(type,scope) {
     var config = scope.config || {};
     var themeState = scope.$eval('me.item.theme.themeState');
     var useOneColor = scope.$eval('me.item.useOneColor');
+    var useUTC = scope.$eval('me.item.useUTC') || false;
     if (!scope.config) {
         config.data = [];
         config.series = [];
@@ -211,7 +212,12 @@ function loadConfiguration(type,scope) {
                     'quarter': xFormat,
                     'year': xFormat
                 }
-            };
+            }
+        }
+        if (useUTC === true) {
+            config.options.scales.xAxes[0].time.parser = function (m) {
+                return moment.utc(m);
+            }
         }
 
         config.options.tooltips = {
@@ -231,9 +237,11 @@ function loadConfiguration(type,scope) {
                             largest = tooltip[i].xLabel;
                         }
                     }
-                    if (xFormat !== "auto") { return moment(largest).format(xFormat); }
+                    var mo = moment(largest);
+                    if (useUTC === true) { mo = moment.utc(largest); }
+                    if (xFormat !== "auto") { return mo.format(xFormat); }
                     else {
-                        return moment(largest).calendar(null, {
+                        return mo.calendar(null, {
                             sameDay: 'HH:mm:ss',
                             nextDay: 'HH:mm',
                             lastDay: 'HH:mm',
@@ -257,6 +265,14 @@ function loadConfiguration(type,scope) {
                 hoverRadius: 4 }
         }
         switch (interpolate) {
+            case 'cubic': {
+                config.options.elements.line.cubicInterpolationMode = "default";
+                break;
+            }
+            case 'monotone': {
+                config.options.elements.line.cubicInterpolationMode = "monotone";
+                break;
+            }
             case 'linear': {
                 config.options.elements.line.tension = 0;
                 break;
@@ -351,20 +367,31 @@ function loadConfiguration(type,scope) {
 
     // Configure legend
     //if (type !== 'bar' && type !== 'horizontalBar' && JSON.parse(legend)) {
-    if (JSON.parse(legend)) {
+    if (legend == "true") {
+        config.overrides = [];
         config.options.legend = {
             display:true,
             position:'top',
-            labels: { boxWidth:10, fontSize:12, padding:8 }
+            labels: { boxWidth:10, fontSize:12, padding:8 },
+            onClick: function(e, legendItem) {
+                var index = legendItem.datasetIndex;
+                var ci = this.chart;
+                var meta = ci.getDatasetMeta(index);
+                meta.hidden = meta.hidden === null ? !ci.data.datasets[index].hidden : null;
+                config.overrides[index] = {hidden:meta.hidden};
+                ci.update();
+            }
         };
         if ((type === "pie") || (type === "polar-area") || (type === "radar")) {
             config.options.legend.position = 'left';
         }
-
         //set colours based on widget text colour
         if (themeState) {
             config.options.legend.labels.fontColor = themeState['widget-textColor'].value;
         }
     }
+
+    // Allow override of any options if really required.
+    config.options = Object.assign({},config.options,scope.$eval('me.item.options'));
     return config;
 }

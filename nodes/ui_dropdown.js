@@ -4,6 +4,7 @@ module.exports = function(RED) {
     function DropdownNode(config) {
         RED.nodes.createNode(this, config);
         this.pt = config.passthru;
+        this.multiple = config.multiple;
         this.state = [" "," "];
         var node = this;
         node.status({});
@@ -14,15 +15,16 @@ module.exports = function(RED) {
         if (!tab) { return; }
 
         var control = {
-                type: 'dropdown',
-                label: config.label,
-                tooltip: config.tooltip,
-                place: config.place || "Select option",
-                order: config.order,
-                value: config.payload || node.id,
-                width: config.width || group.config.width || 6,
-                height: config.height || 1
-            };
+            type: 'dropdown',
+            multiple: config.multiple,
+            label: config.label,
+            tooltip: config.tooltip,
+            place: config.place || "Select option",
+            order: config.order,
+            value: config.payload || node.id,
+            width: config.width || group.config.width || 6,
+            height: config.height || 1
+        };
 
         for (var o=0; o<config.options.length; o++) {
             config.options[o].label = config.options[o].label || config.options[o].value;
@@ -30,6 +32,7 @@ module.exports = function(RED) {
         control.options = config.options;
 
         var emitOptions;
+        var savedtopic;
 
         var done = ui.add({
             node: node,
@@ -93,7 +96,7 @@ module.exports = function(RED) {
                     emitOptions.isOptionsValid = true;
                 } while (false);
                 // finally adjust msg to reflect the input
-                msg._fromInput = true;
+                msg._dontSend = true;
                 if (emitOptions.isOptionsValid) {
                     control.options = emitOptions.newOptions;
                     control.value = emitOptions.value;
@@ -103,11 +106,11 @@ module.exports = function(RED) {
                         node.error("ERR: Invalid Options", msg);
                     }
                 }
-
+                if (msg.hasOwnProperty("topic")) { savedtopic = msg.topic; }
                 if (msg.hasOwnProperty("payload")) {
                     emitOptions.value = msg.payload;
                     control.value = emitOptions.value;
-                    emitOptions._fromInput = true;
+                    emitOptions._dontSend = true;
                     return emitOptions;
                 }
                 // we do not overide payload here due to 'opt.emitOnlyNewValues' in ui.js
@@ -120,16 +123,26 @@ module.exports = function(RED) {
             },
 
             beforeSend: function (msg) {
-                if (msg._fromInput) {
+                var val = node.multiple ? [] : "";
+                if (msg._dontSend) {
                     delete msg.options;
                     msg.payload = emitOptions.value;
                 }
-                msg.topic = config.topic || msg.topic;
+                for (var i=0; i<control.options.length; i++) {
+                    if (!node.multiple && control.options[i].value === msg.payload) {
+                        val = control.options[i].label;
+                        break;
+                    }
+                    else if (node.multiple && msg.payload.includes(control.options[i].value)) {
+                        val.push(control.options[i].label);
+                    }
+                }
+                msg.topic = config.topic || msg.topic || savedtopic;
                 if (node.pt) {
-                    node.status({shape:"dot",fill:"grey",text:msg.payload});
+                    node.status({shape:"dot",fill:"grey",text:val.toString()});
                 }
                 else {
-                    node.state[1] = msg.payload;
+                    node.state[1] = val.toString();
                     node.status({shape:"dot",fill:"grey",text:node.state[1] + " | " + node.state[1]});
                 }
             }

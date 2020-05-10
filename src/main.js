@@ -1,5 +1,5 @@
 
-// Object.assign polyfill for IE11....
+// Object.assign polyfill for IE11...
 if (typeof Object.assign != 'function') {
     (function() {
         Object.assign = function(target) {
@@ -23,11 +23,25 @@ if (typeof Object.assign != 'function') {
     })()
 }
 
+// String startsWith polyfill for IE11...
+if (!String.prototype.startsWith) {
+    String.prototype.startsWith = function(searchString, position) {
+        position = position || 0;
+        return this.indexOf(searchString, position) === position;
+    };
+}
+
+var doVisualUpdates = true;
+document.addEventListener('visibilitychange', function() {
+    setTimeout(function() { doVisualUpdates = !document.hidden; }, 1000);
+});
+
 var app = angular.module('ui',['ngMaterial', 'ngMdIcons', 'ngSanitize', 'ngTouch', 'sprintf', 'chart.js', 'color.picker']);
 
 var locale = (navigator.languages && navigator.languages.length) ? navigator.languages[0] : navigator.language;
 moment.locale(locale);
 
+var dateFormat;
 app.config(['$mdThemingProvider', '$compileProvider', '$mdDateLocaleProvider', '$provide',
     function ($mdThemingProvider, $compileProvider, $mdDateLocaleProvider, $provide) {
         // base theme can be default, dark, light or none
@@ -46,11 +60,11 @@ app.config(['$mdThemingProvider', '$compileProvider', '$mdDateLocaleProvider', '
         $mdDateLocaleProvider.shortDays = moment.localeData().weekdaysMin();
 
         $mdDateLocaleProvider.formatDate = function(date) {
-            return date ? moment(date).format("DD MMM YYYY") : null;
+            return date ? moment(date).format(dateFormat || "DD MMM YYYY") : null;
         };
 
         $mdDateLocaleProvider.parseDate = function(dateString) {
-            var m = moment(dateString, "DD MMM YYYY", true);
+            var m = moment(dateString, dateFormat || "DD MMM YYYY", true);
             return m.isValid() ? m.toDate() : new Date(NaN);
         };
 
@@ -77,12 +91,13 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
         var audioSource;
         var voices = [];
         var tabId = 0;
+        var disc = true;
 
         function moveTab(d) {
             var len = main.menu.length;
             if (len > 1) {
                 //var i = parseInt($location.path().substr(1));
-                for (var i = tabId + d; i != tabId; i += d) {
+                for (var i = +tabId + d; i != tabId; i += d) {
                     i = i % len;
                     if (i < 0) { i += len; }
                     if (!main.menu[i].disabled && !main.menu[i].hidden) {
@@ -97,11 +112,27 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
         $scope.onSwipeLeft = function() { if (main.allowSwipe) { moveTab(-1); } }
         $scope.onSwipeRight = function() { if (main.allowSwipe) { moveTab(1); } }
 
+        // Added as PR#587 to fix navigation history so back/forwards works ok from browser
+        $scope.$on('$locationChangeSuccess', function ($event, newUrl, oldUrl, newState, oldState) {
+            if ($location.path() === '/' + tabId) { return; }
+            var tabIdFromUrlPath = parseInt($location.path().split('/')[1], 10);
+            if (!isNaN(tabIdFromUrlPath)) {
+                var menu = main.menu[tabIdFromUrlPath];
+                if (menu) {
+                    main.open(menu, tabIdFromUrlPath);
+                }
+            }
+        });
+
+        $rootScope.$on("collapse", function(e,d,d2) {
+            events.emit('ui-collapse', {group:d, state:d2});
+        });
+
         this.toggleSidenav = function () { $mdSidenav('left').toggle(); }
 
         this.select = function (index) {
             main.selectedTab = main.menu[index];
-            if (main.menu.length > 0) { $mdSidenav('left').close(); }
+            if (main.menu.length > 0) { if ($mdSidenav('left')) { $mdSidenav('left').close(); } }
             tabId = index;
             events.emit('ui-change', tabId);
             $location.path(index);
@@ -125,14 +156,13 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                     if (typeof main.menu[index].link === "string") {
                         main.menu[index].link = $sce.trustAsResourceUrl(main.menu[index].link);
                     }
-                    main.selectedTab = main.menu[index];
-                    tabId = index;
-                    events.emit('ui-change', tabId);
-                    $location.path(index);
+                    main.select(index);
                 }
                 $mdSidenav('left').close();
             }
         }
+
+        $scope.location = $location;
 
         this.getMenuName = function (menu) {
             if (menu.link !== undefined) {
@@ -186,10 +216,32 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             }
         }
 
-        function hideGroups() {
+        function hideTabsAndGroups() {
             var flag = false;
             for (var t in main.menu) {
                 if (main.menu.hasOwnProperty(t)) {
+                    if (typeof localStorage !== 'undefined') {
+                        if (localStorage.getItem("th"+t+main.menu[t].header) == "true") {
+                            if (main.menu[t].hidden === true) { localStorage.removeItem("th"+t+main.menu[t].header) }
+                            else { main.menu[t].hidden = true; }
+                            flag = true;
+                        }
+                        if (localStorage.getItem("th"+t+main.menu[t].header) == "false") {
+                            if (main.menu[t].hidden === false) { localStorage.removeItem("th"+t+main.menu[t].header) }
+                            else { main.menu[t].hidden = false; }
+                            flag = true;
+                        }
+                        if (localStorage.getItem("td"+t+main.menu[t].header) == "true") {
+                            if (main.menu[t].disabled === true) { localStorage.removeItem("td"+t+main.menu[t].header) }
+                            else { main.menu[t].disabled = true; }
+                            flag = true;
+                        }
+                        if (localStorage.getItem("td"+t+main.menu[t].header) == "false") {
+                            if (main.menu[t].disabled === false) { localStorage.removeItem("td"+t+main.menu[t].header) }
+                            else { main.menu[t].disabled = false; }
+                            flag = true;
+                        }
+                    }
                     for (var g in main.menu[t].items) {
                         if (main.menu[t].items.hasOwnProperty(g)) {
                             var c = (main.menu[t].header+" "+main.menu[t].items[g].header.name).replace(/ /g,"_");
@@ -287,6 +339,8 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
         }
 
         events.connect(function (ui, done) {
+            disc = false;
+            events.emit('ui-params', $location.search());
             main.menu = ui.menu;
             main.globals = ui.globals;
             main.nothing = false;
@@ -339,10 +393,11 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 if ((main.selectedTab !== null) && (main.selectedTab.link !== undefined)) {
                     main.selectedTab.link = $sce.trustAsResourceUrl(main.selectedTab.link);
                 }
+                $('meta[name=theme-color]').attr('content', ui.theme.themeState["page-titlebar-backgroundColor"].value || "#097479");
                 $mdToast.hide();
                 processGlobals();
                 events.emit('ui-change', prevTabIndex);
-                hideGroups();
+                hideTabsAndGroups();
                 done();
             }
             if (!isNaN(prevTabIndex) && prevTabIndex < main.menu.length && !main.menu[prevTabIndex].disabled) {
@@ -376,6 +431,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             main.len = main.menu.length;
         }, function () {
             main.loaded = true;
+            $scope.$apply();
         });
 
         function findControl(id, items) {
@@ -411,6 +467,16 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
             return elFound;
         }
 
+        function arrayIncludesName(strArray, strName) {
+            // if an array of names is input, use it -- else build an array of one name
+            var arrNames = strArray && Array.isArray(strArray) ? strArray : [strArray];
+            // convert all names to lower-case, and replace any spaces with '_'
+            arrNames = arrNames.map(function (n) {
+                return n.toLowerCase().replace(/\s+/g, '_');
+            });
+            return arrNames.includes(strName.toLowerCase().replace(/\s+/g, '_'));
+        }
+
         events.on(function (msg) {
             var found;
             if (msg.hasOwnProperty('msg') && msg.msg.templateScope === 'global') {
@@ -441,26 +507,77 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                     found.me.processInput(msg);
                 }
             }
+            $scope.$apply();
         });
 
         events.on('disconnect', function(m) {
-            $mdToast.show({
-                template: '<md-toast><div class="md-toast-error">&#x2718; &nbsp; Connection lost</div></md-toast>',
-                position: 'top right',
-                hideDelay: 6000000
-            });
+            if (!disc && doVisualUpdates) {
+                $mdToast.show({
+                    template: '<md-toast><div class="md-toast-error">&#x2718; &nbsp; Connection lost</div></md-toast>',
+                    position: 'top right',
+                    hideDelay: 6000000
+                });
+                disc = true;
+            }
+        });
+
+        // Added as PR #586 - to help cache bust aged out socket connections and force re-authentication
+        events.on('connect_error', function (error) {
+            var getRandomFromUrl = function () {
+                var matches = window.location.search.match(/[?&]random=([^&]*)/);
+                return (matches && matches[1] || 0) * 1;
+            };
+            var forceReload = function () {
+                // avoid reload loop
+                if ((new Date()).getTime() - getRandomFromUrl() < 60000) { return; }
+
+                // remove existing 'random' and add new one
+                var search = window.location.search;
+                search = search.replace(/[?&]random=([^&]*)/, '');
+                if (!search.startsWith('?')) { search = '?' + search; }
+                search += '&random=' + (new Date()).getTime();
+
+                // restore new url with updated search params
+                var url = window.location.origin;
+                url += window.location.pathname;
+                url += search;
+                url += window.location.hash;
+                window.location = url;
+            };
+
+            // force reload on Unauthorized response
+            if (error.type === 'TransportError' && error.description === 401) {
+                forceReload();
+            }
         });
 
         events.on('show-toast', function (msg) {
+            if (msg.raw !== true) {
+                var temp = document.createElement('div');
+                temp.textContent = msg.message;
+                msg.message = temp.innerHTML;
+            }
             if (msg.dialog === true) {
                 var confirm;
-                if (msg.cancel) {
+                if (msg.message == "") { $mdDialog.cancel(); return; }
+                if (msg.cancel && msg.prompt) {
+                    confirm = $mdDialog.prompt()
+                        .title(msg.title)
+                        .htmlContent(msg.message)
+                        .initialValue("")
+                        .ariaLabel(msg.ok + " or " + msg.cancel)
+                        .ok(msg.ok)
+                        .cancel(msg.cancel);
+                    confirm._options.focusOnOpen = false;
+                }
+                else if (msg.cancel) {
                     confirm = $mdDialog.confirm()
                         .title(msg.title)
                         .htmlContent(msg.message)
                         .ariaLabel(msg.ok + " or " + msg.cancel)
                         .ok(msg.ok)
                         .cancel(msg.cancel);
+                    confirm._options.focusOnOpen = false;
                 }
                 else {
                     confirm = $mdDialog.alert()
@@ -468,11 +585,27 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                         .htmlContent(msg.message)
                         .ariaLabel(msg.ok)
                         .ok(msg.ok)
-                        .clickOutsideToClose(false)
                 }
-                $mdDialog.show(confirm, { panelClass:'nt-dashboard-dialog' }).then(
-                    function() {
+                confirm._options.template = '<md-dialog md-theme="{{ dialog.theme || dialog.defaultTheme }}" aria-label="{{ dialog.ariaLabel }}" >' +
+                    '<md-dialog-content class="md-dialog-content" role="document" tabIndex="-1">' +
+                        '<h2 class="md-title">{{ dialog.title }}</h2>' +
+                        '<div ng-if="::dialog.mdHtmlContent" class="md-dialog-content-body"ng-bind-html="::dialog.mdHtmlContent | trusted"></div>' +
+                        '<div ng-if="::!dialog.mdHtmlContent" class="md-dialog-content-body"><p>{{::dialog.mdTextContent}}</p></div>' +
+                        '<md-input-container md-no-float ng-if="::dialog.$type == \'prompt\'" class="md-prompt-input-container"><input ng-keypress="dialog.keypress($event)" md-autofocus ng-model="dialog.result"placeholder="{{::dialog.placeholder}}" ng-required="dialog.required">' +
+                        '</md-input-container>' +
+                    '</md-dialog-content>' +
+                    '<md-dialog-actions>' +
+                        '<md-button ng-if="dialog.$type === \'confirm\' || dialog.$type === \'prompt\'"ng-click="dialog.abort()" class="md-primary md-cancel-button">{{ dialog.cancel }}</md-button>' +
+                        '<md-button ng-click="dialog.hide()" class="md-primary md-confirm-button" md-autofocus="dialog.$type===\'alert\'" ng-disabled="dialog.required && !dialog.result">{{ dialog.ok }}</md-button>' +
+                    '</md-dialog-actions>' +
+                '</md-dialog>';
+                $mdDialog.show(confirm, { panelClass:'nr-dashboard-dialog' }).then(
+                    function(res) {
+                        console.log("RES",typeof res,res,"::",msg.ok,"::");
                         msg.msg.payload = msg.ok;
+                        if (res != true) { msg.msg.payload = res; }
+                        if (res == undefined) { msg.msg.payload = ""; }
+                        console.log("MSG",msg);
                         events.emit({ id:msg.id, value:msg });
                     },
                     function() {
@@ -485,6 +618,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 if (msg.hasOwnProperty("message") || msg.hasOwnProperty("title")) {
                     var toastScope = $rootScope.$new();
                     toastScope.toast = msg;
+                    if (msg.hasOwnProperty("message") && msg.message == "") { msg.displayTime = 1; }
                     var opts = {
                         scope: toastScope,
                         templateUrl: 'partials/toast.html',
@@ -499,9 +633,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
         events.on('ui-control', function(msg) {
             if (msg.hasOwnProperty("socketid") && (msg.socketid !== events.id) ) { return; }
             if (msg.hasOwnProperty("control")) { // if it's a request to modify a control
-                //console.log("MSG",msg);
-                found = findControl(msg.id, main.menu);
-                //console.log("FOUND",found);
+                var found = findControl(msg.id, main.menu);
                 for (var property in msg.control) {
                     if (msg.control.hasOwnProperty(property) && found.hasOwnProperty(property)) {
                         found[property] = msg.control[property];
@@ -509,20 +641,55 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 }
                 //Object.assign(found,msg.control);
             }
+            if (msg.hasOwnProperty("tabs")) { // ui_control request to show/hide/enable/disable tabs
+                if (typeof msg.tabs === 'object') {
+                    for (var ta in main.menu) {
+                        if (main.menu.hasOwnProperty(ta)) {
+                            if (msg.tabs.hasOwnProperty("show")) {
+                                if (arrayIncludesName(msg.tabs.show, main.menu[ta].header)) {
+                                    main.menu[ta].hidden = false;
+                                    localStorage.setItem("th"+ta+main.menu[ta].header,false);
+                                }
+                            }
+                            if (msg.tabs.hasOwnProperty("hide")) {
+                                if (arrayIncludesName(msg.tabs.hide, main.menu[ta].header)) {
+                                    main.menu[ta].hidden = true;
+                                    localStorage.setItem("th"+ta+main.menu[ta].header,true);
+                                }
+                            }
+                            if (msg.tabs.hasOwnProperty("enable")) {
+                                if (arrayIncludesName(msg.tabs.enable, main.menu[ta].header)) {
+                                    main.menu[ta].disabled = false;
+                                    localStorage.setItem("td"+ta+main.menu[ta].header,false);
+                                }
+                            }
+                            if (msg.tabs.hasOwnProperty("disable")) {
+                                if (arrayIncludesName(msg.tabs.disable, main.menu[ta].header)) {
+                                    main.menu[ta].disabled = true;
+                                    localStorage.setItem("td"+ta+main.menu[ta].header,true);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             if (msg.hasOwnProperty("tab")) { // if it's a request to change tabs
+                // is it a tab name or relative number?
                 if (typeof msg.tab === 'string') {
                     if (msg.tab === "") { events.emit('ui-refresh', {}); }
-                    if (msg.tab === "+1") { moveTab(1); return; }
-                    if (msg.tab === "-1") { moveTab(-1); return; }
+                    if (msg.tab === "+1") { moveTab(1); $scope.$apply(); return; }
+                    if (msg.tab === "-1") { moveTab(-1); $scope.$apply(); return; }
                     for (var i in main.menu) {
                         // is it the name of a tab ?
                         if (msg.tab == main.menu[i].header) {
                             if (!main.menu[i].disabled) { main.select(i); }
+                            $scope.$apply();
                             return;
                         }
                         // or the name of a link ?
                         else if (msg.tab == main.menu[i].name) {
                             if (!main.menu[i].disabled) { main.open(main.menu[i], i); }
+                            $scope.$apply();
                             return;
                         }
                     }
@@ -532,6 +699,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 if (Number.isNaN(index) || index < 0) { return; }
                 if (index < main.menu.length) {
                     if (!main.menu[index].disabled) { main.open(main.menu[index], index); }
+                    $scope.$apply();
                     return;
                 }
             }
@@ -556,6 +724,20 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                                             localStorage.setItem("g"+c,true);
                                         }
                                     }
+                                    if (msg.group.hasOwnProperty("close")) {
+                                        if (msg.group.close.indexOf(c) > -1) {
+                                            if (typeof localStorage !== 'undefined' && localStorage.getItem(c) == "false") {
+                                                $("#"+c+" > div > p > span > i").trigger("click");
+                                            }
+                                        }
+                                    }
+                                    if (msg.group.hasOwnProperty("open")) {
+                                        if (msg.group.open.indexOf(c) > -1) {
+                                            if (typeof localStorage !== 'undefined' && localStorage.getItem(c) == "true") {
+                                                $("#"+c+" > div > p > span > i").trigger("click");
+                                            }
+                                        }
+                                    }
                                     $(window).trigger('resize');
                                 }
                             }
@@ -569,6 +751,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                     }
                 }
             }
+            $scope.$apply();
         });
 
         events.on('ui-audio', function(msg) {
@@ -598,7 +781,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                 if (voices.length > 0) {
                     var words = new SpeechSynthesisUtterance(msg.tts);
                     words.onerror = function(err) { events.emit('ui-audio', 'error: '+err.error); }
-                    words.onend = function(event) { events.emit('ui-audio', 'complete'); }
+                    words.onend = function() { events.emit('ui-audio', 'complete'); }
                     for (var v=0; v<voices.length; v++) {
                         if (voices[v].lang === msg.voice) {
                             words.voice = voices[v];
@@ -609,7 +792,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                     window.speechSynthesis.speak(words);
                 }
                 else {
-                    console.log("Your Browser does not support Text-to-Speech");
+                    console.log("This Browser does not support Text-to-Speech");
                     var toastScope = $rootScope.$new();
                     toastScope.toast = {message:msg.tts, title:"Computer says..."};
                     $mdToast.show({ scope:toastScope, position:'top right', templateUrl:'partials/toast.html' });
@@ -634,7 +817,7 @@ app.controller('MainController', ['$mdSidenav', '$window', 'UiEvents', '$locatio
                             audioSource.start(0);
                             events.emit('ui-audio', 'playing');
                         },
-                        function(err) { events.emit('ui-audio', 'error'); }
+                        function() { events.emit('ui-audio', 'error'); }
                     )
                 }
                 catch(e) { events.emit('ui-audio', 'error'); }
